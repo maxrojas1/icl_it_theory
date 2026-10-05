@@ -1,0 +1,31 @@
+models:
+  model_1:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-0.5B-quantized.w8a16
+    params: 0.5B
+    color: "#C7D2FE"
+  model_2:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-1.5B-quantized.w8a16
+    params: 1.5B
+    color: "#93C5FD"
+  model_3:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-3B-quantized.w8a16
+    params: 3B
+    color: "#6366F1"
+  model_4:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-7B-quantized.w8a16
+    params: 7B
+    color: "#4F46E5"
+  model_5:
+    name: Qwen-2.5
+    id: Qwen/Qwen2.5-14B
+    params: 14B
+    color: "#312E81"
+  model_6:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-32B-quantized.w8a16
+    params: 32B
+    color: "#0F172A"

@@ -1,0 +1,27 @@
+[project]
+name = "icl_it_theory"
+version = "0.1.0"
+description = "Explaining the in-context learning capacity of language models for classification under the cross-entropy loss: theory, mechanism and interpretation"
+readme = "README.md"
+requires-python = ">=3.10,<3.12"
+dependencies = [
+    "numpy>=2.0.0",
+    "pandas",
+    "pyarrow>=24.0.0",
+    "scipy",
+    "matplotlib>=3.10.8",
+    "scienceplots>=2.2.2",
+    "omegaconf>=2.3.0",
+    "tqdm>=4.67.1",
+    "jaxtyping>=0.3.7",
+    "torch>=2.11.0",
+    "vllm>=0.20.0",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cuda" }

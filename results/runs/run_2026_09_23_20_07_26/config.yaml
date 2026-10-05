@@ -1,0 +1,53 @@
+dim: 1
+seed_task: 42
+seed_train: 43
+seed_val: 44
+seed_entropy: 45
+num_contexts: 256
+num_val: 64
+num_train: 64
+max_train: 300
+models:
+  model_1:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-0.5B-quantized.w8a16
+    params: 0.5B
+    color: '#C7D2FE'
+    run_time: '3:06:07'
+  model_2:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-1.5B-quantized.w8a16
+    params: 1.5B
+    color: '#93C5FD'
+    run_time: '3:09:32'
+  model_3:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-3B-quantized.w8a16
+    params: 3B
+    color: '#6366F1'
+    run_time: '3:27:09'
+  model_4:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-7B-quantized.w8a16
+    params: 7B
+    color: '#4F46E5'
+    run_time: '3:53:11'
+  model_5:
+    name: Qwen-2.5
+    id: Qwen/Qwen2.5-14B
+    params: 14B
+    color: '#312E81'
+    run_time: '4:52:44'
+  model_6:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-32B-quantized.w8a16
+    params: 32B
+    color: '#0F172A'
+    run_time: '7:09:56'
+gpu_ptge: 0.9
+exp: icl_training
+entropy_num_tasks: 100000
+run: '2026_09_23_20_07_26'
+entropies:
+- 0.26
+- 0.69

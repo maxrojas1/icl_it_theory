@@ -1,0 +1,32 @@
+dim: 1
+seed_task: 42
+seed_train: 43
+seed_val: 44
+seed_entropy: 45
+num_contexts: 100
+num_val: 100
+num_train: 500
+max_train: 1000
+models:
+  model_1:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-7B-quantized.w8a16
+    params: 7B
+    quant_bits: 8
+    color: '#4F46E5'
+    run_time: 7 days, 22:05:12
+gpu_ptge: 0.9
+exp: icl_training
+run: '2026_07_23_17_24_35'
+old_geom: true
+entropies:
+- 0.36
+- 0.4
+- 0.44
+- 0.47
+- 0.51
+- 0.55
+- 0.58
+- 0.62
+- 0.66
+- 0.69

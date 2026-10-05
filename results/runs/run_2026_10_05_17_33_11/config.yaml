@@ -1,0 +1,26 @@
+max_train: 10
+num_train: 5
+num_val: 20
+num_contexts: 20
+num_entropy_levels: 1
+entropies:
+- 0.48
+dim: 1
+seed_train: 43
+seed_val: 44
+seed_entropy: 45
+seed_task: 42
+entropy_num_tasks: 100000
+gpu_ptge: 0.9
+old_geom: false
+plot: both
+models:
+  model_1:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-0.5B-quantized.w8a16
+    params: 0.5B
+    color: '#C7D2FE'
+    run_time: 0:00:16
+run: '2026_10_05_17_33_11'
+run_dir: results/runs/run_2026_10_05_17_33_11
+run_time: 0:00:17
