@@ -61,7 +61,20 @@ Plots are saved as PDFs under `results/figures/run_<timestamp>/` for single-run 
 
 ## Running experiments from scratch
 
-### Re-running paper experiments
+### Automated execution queue
+
+To run the complete pipeline end-to-end (14B model quantization, DGP figure generation, the four paper evaluation runs, and all comparative plots):
+
+```bash
+./run_experiments.sh
+```
+
+Optional flags:
+- `--dry-run`: View all queued commands without executing.
+- `--quant-only`: Only quantize the 14B model to W8A16 and exit.
+- `--skip-quant`: Skip 14B quantization check and proceed directly to evaluations.
+
+### Re-running individual paper experiments
 
 Here are the exact commands to reproduce the evaluations for each paper run from scratch:
 
