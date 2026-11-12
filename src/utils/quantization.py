@@ -102,6 +102,20 @@ def get_or_quantize_model(model_id: str,
         print(f"Using cached quantized model: {out_path}")
         return str(out_path)
 
+    try:
+        from llmcompressor import oneshot
+    except ImportError:
+        venv_quant_py = Path(".venv-quant") / "bin" / "python"
+        if not venv_quant_py.exists():
+            print("Initializing dedicated quantization environment (.venv-quant)...")
+            import subprocess
+            subprocess.run(["uv", "venv", ".venv-quant"], check=True)
+            subprocess.run(["uv", "pip", "install", "--python", str(venv_quant_py), "llmcompressor", "omegaconf"], check=True)
+        import subprocess
+        print(f"Running quantization via isolated environment (.venv-quant)...")
+        subprocess.run([str(venv_quant_py), "-m", "src.utils.quantization", "--model", model_id, "--quant_bits", str(quant_bits), "--save_dir", str(out_path)], check=True)
+        return str(out_path)
+
     return quantize_model(
         model_id=model_id,
         quant_bits=quant_bits,
