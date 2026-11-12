@@ -1,9 +1,10 @@
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 import numpy as np
 
-from .styles import add_params_colorbar, get_mapped_axes
+from .styles import add_params_colorbar, format_entropy, get_mapped_axes
 
 
 def plot_icl_training(train_sizes: list[int],
@@ -79,11 +80,11 @@ def plot_icl_training(train_sizes: list[int],
             ax1.set_xscale('log')
             ax1.set_yscale('log')
             if 'xlim' in kwargs and kwargs['xlim'] is not None:
-                ax1.set_xlim(kwargs['xlim'][0], kwargs['xlim'][1])
+                ax1.set_xlim(max(1e-1, float(kwargs['xlim'][0])), float(kwargs['xlim'][1]))
             else:
                 ax1.set_xlim(train_sizes[0] * 0.85, train_sizes[-1] * 1.15)
             if 'ylim' in kwargs and kwargs['ylim'] is not None:
-                ax1.set_ylim(kwargs['ylim'][0], kwargs['ylim'][1])
+                ax1.set_ylim(max(1e-6, float(kwargs['ylim'][0])), float(kwargs['ylim'][1]))
             ax1.grid(True, which='both', linestyle=grid_ls, linewidth=grid_lw, alpha=grid_alpha)
             ax1.set_axisbelow(True)
             ax1.tick_params(axis='both', labelsize=tick_fs)
@@ -174,11 +175,11 @@ def plot_entropy_icl_training(train_sizes: list[int],
         ax1.set_xscale('log')
         ax1.set_yscale('log')
         if 'xlim' in kwargs and kwargs['xlim'] is not None:
-            ax1.set_xlim(kwargs['xlim'][0], kwargs['xlim'][1])
+            ax1.set_xlim(max(1e-1, float(kwargs['xlim'][0])), float(kwargs['xlim'][1]))
         else:
             ax1.set_xlim(train_sizes[0] * 0.85, train_sizes[-1] * 1.15)
         if 'ylim' in kwargs and kwargs['ylim'] is not None:
-            ax1.set_ylim(kwargs['ylim'][0], kwargs['ylim'][1])
+            ax1.set_ylim(max(1e-6, float(kwargs['ylim'][0])), float(kwargs['ylim'][1]))
         ax1.grid(True, which='both', linestyle=grid_ls, linewidth=grid_lw, alpha=grid_alpha)
         ax1.set_axisbelow(True)
         ax1.tick_params(axis='both', labelsize=tick_fs)
@@ -191,13 +192,19 @@ def plot_entropy_icl_training(train_sizes: list[int],
     fig.subplots_adjust(left=horiz_margin_left, right=horiz_margin_right, top=horiz_margin_top, bottom=horiz_margin_bottom)
     cax = fig.add_axes(horiz_cax_rect)
         
-    cbar = fig.colorbar(sm, cax=cax, format='%.2f')
+    cbar = fig.colorbar(sm, cax=cax, format=FuncFormatter(lambda x, pos: format_entropy(x)))
     cbar.set_label(r"$H(Y \mid X)$", fontsize=label_fs)
     cbar.ax.tick_params(labelsize=tick_fs)
 
-    current_ticks = cbar.get_ticks()
-    valid_ticks = [t for t in current_ticks if min_ent < t < max_ent]
-    cbar.set_ticks([min_ent] + valid_ticks + [max_ent])
+    if min_ent < max_ent:
+        current_ticks = cbar.get_ticks()
+        valid_ticks = [t for t in current_ticks if min_ent < t < max_ent]
+        ticks = [min_ent] + valid_ticks + [max_ent]
+        cbar.set_ticks(ticks)
+        cbar.set_ticklabels([format_entropy(t) for t in ticks])
+    else:
+        cbar.set_ticks([min_ent])
+        cbar.set_ticklabels([format_entropy(min_ent)])
 
     return fig
 
@@ -242,11 +249,11 @@ def plot_power_law(train_list: list[int],
     grid_ls = '--'
     xlim = kwargs.get('xlim')
     ylim = kwargs.get('ylim')
-    min_examples = float(xlim[0]) if xlim is not None else float(train_list[0])
+    min_examples = max(1e-1, float(xlim[0])) if xlim is not None else float(train_list[0])
     max_examples = float(xlim[1]) if xlim is not None else float(train_list[-1])
 
-    mask_list = (np.asarray(train_list) <= max_examples)
-    mask_cont = (np.asarray(train_continuous) <= max_examples)
+    mask_list = (np.asarray(train_list) >= min_examples) & (np.asarray(train_list) <= max_examples)
+    mask_cont = (np.asarray(train_continuous) >= min_examples) & (np.asarray(train_continuous) <= max_examples)
     train_list_plot = np.asarray(train_list)[mask_list]
     train_continuous_plot = np.asarray(train_continuous)[mask_cont]
 
@@ -256,7 +263,7 @@ def plot_power_law(train_list: list[int],
         fig, mapped_axs = get_mapped_axes(figsize, 2, subplots_to_plot, sharex=True)
         ax1, ax2 = mapped_axs
             
-        title = config_and_results.get("title", fr"ICL Scaling Law for $H(Y \mid X)$ = {entropy_level}")
+        title = config_and_results.get("title", fr"ICL Scaling Law for $H(Y \mid X)$ = {format_entropy(entropy_level)}")
         y_minimax_der_shared = None
 
         for key, model_data in config_and_results.items():
@@ -286,10 +293,13 @@ def plot_power_law(train_list: list[int],
             ax2.relim()
             ax2.autoscale_view()
             y_min, y_max = ax2.get_ylim()
+            y_min = min(1.0, max(0.0, y_min))
+            y_max = max(1.15, y_max)
             if y_max > 1.0:
                 ax2.fill_between(train_continuous_plot, y1=np.maximum(y_minimax_der_shared, y_min), y2=y_max, facecolor='g', alpha=fill_alpha)
             if y_min < 1.0:
                 ax2.fill_between(train_continuous_plot, y1=y_min, y2=np.minimum(y_minimax_der_shared, y_max), facecolor='r', alpha=fill_alpha)
+            ax2.axhline(y=1.0, color="black", linewidth=0.8, linestyle="dotted", zorder=2)
             ax2.set_ylim(y_min, y_max)
 
         if ax1 is not None:
@@ -368,11 +378,11 @@ def plot_entropy_power_law(train_list: list[int],
     grid_ls = '--'
     xlim = kwargs.get('xlim')
     ylim = kwargs.get('ylim')
-    min_examples = float(xlim[0]) if xlim is not None else float(train_list[0])
+    min_examples = max(1e-1, float(xlim[0])) if xlim is not None else float(train_list[0])
     max_examples = float(xlim[1]) if xlim is not None else float(train_list[-1])
 
-    mask_list = (np.asarray(train_list) <= max_examples)
-    mask_cont = (np.asarray(train_continuous) <= max_examples)
+    mask_list = (np.asarray(train_list) >= min_examples) & (np.asarray(train_list) <= max_examples)
+    mask_cont = (np.asarray(train_continuous) >= min_examples) & (np.asarray(train_continuous) <= max_examples)
     train_list_plot = np.asarray(train_list)[mask_list]
     train_continuous_plot = np.asarray(train_continuous)[mask_cont]
 
@@ -390,7 +400,7 @@ def plot_entropy_power_law(train_list: list[int],
     y_minimax_der_shared = None
 
     for w_val, results in entropies_results.items():
-        color = cmap(norm(float(w_val)))
+        color = cmap(norm(float(w_val))) if min_ent < max_ent else cmap(0.5)
         risks = np.asarray(results["risks"])[mask_list]
         y_real = np.asarray(results["y_real"])[mask_cont]
         y_real_der = np.asarray(results["y_real_der"])[mask_cont]
@@ -408,10 +418,13 @@ def plot_entropy_power_law(train_list: list[int],
         ax2.relim()
         ax2.autoscale_view()
         y_min, y_max = ax2.get_ylim()
+        y_min = min(1.0, max(0.0, y_min))
+        y_max = max(1.15, y_max)
         if y_max > 1.0:
             ax2.fill_between(train_continuous_plot, y1=np.maximum(y_minimax_der_shared, y_min), y2=y_max, facecolor='g', alpha=fill_alpha)
         if y_min < 1.0:
             ax2.fill_between(train_continuous_plot, y1=y_min, y2=np.minimum(y_minimax_der_shared, y_max), facecolor='r', alpha=fill_alpha)
+        ax2.axhline(y=1.0, color="black", linewidth=0.8, linestyle="dotted", zorder=2)
         ax2.set_ylim(y_min, y_max)
 
     if ax1 is not None:
@@ -442,13 +455,19 @@ def plot_entropy_power_law(train_list: list[int],
     fig.subplots_adjust(left=horiz_margin_left, right=horiz_margin_right, bottom=horiz_margin_bottom, top=horiz_margin_top, wspace=horiz_margin_wspace)
     cax = fig.add_axes(horiz_cax_rect)
 
-    cbar = fig.colorbar(sm, cax=cax, format='%.2f')
+    cbar = fig.colorbar(sm, cax=cax, format=FuncFormatter(lambda x, pos: format_entropy(x)))
     cbar.set_label(r"$H(Y \mid X)$", fontsize=label_fs)
     cbar.ax.tick_params(labelsize=tick_fs)
 
-    current_ticks = cbar.get_ticks()
-    valid_ticks = [t for t in current_ticks if min_ent < t < max_ent]
-    cbar.set_ticks([min_ent] + valid_ticks + [max_ent])
+    if min_ent < max_ent:
+        current_ticks = cbar.get_ticks()
+        valid_ticks = [t for t in current_ticks if min_ent < t < max_ent]
+        ticks = [min_ent] + valid_ticks + [max_ent]
+        cbar.set_ticks(ticks)
+        cbar.set_ticklabels([format_entropy(t) for t in ticks])
+    else:
+        cbar.set_ticks([min_ent])
+        cbar.set_ticklabels([format_entropy(min_ent)])
 
     return fig
 

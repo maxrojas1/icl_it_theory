@@ -39,17 +39,17 @@ def get_all_simulated_tasks_and_ces(dim: int,
             pass
 
     print(f"Simulating {num_task} tasks (saving to cache for future runs)...")
-    torch.manual_seed(seed_entropy)
+    gen = torch.Generator().manual_seed(seed_entropy)
     tasks = []
     ces = []
     batch_size = 5000
     num_samples = 100_000
-    X = torch.randn(num_samples, dim)
+    X = torch.randn(num_samples, dim, generator=gen)
     X_rounded = torch.round(X * 10.0) / 10.0
 
     for i in tqdm(range(0, num_task, batch_size), desc="Simulating tasks (caching for future runs)"):
         current_batch = min(batch_size, num_task - i)
-        W_batch = torch.randn(dim, current_batch) / math.sqrt(dim)
+        W_batch = torch.randn(dim, current_batch, generator=gen) / math.sqrt(dim)
         logits = torch.matmul(X_rounded, W_batch)
         probs = torch.sigmoid(logits)
         h = F.binary_cross_entropy(probs, probs, reduction='none')
@@ -109,9 +109,9 @@ def get_tasks_by_entropy(dim: int,
         closest_idx = min(range(len(ces)), key=lambda i: abs(ces[i] - target))
         closest_task = tasks[closest_idx]
         closest_ce = ces[closest_idx]
-        val_rounded = round(float(closest_ce), 2)
+        val_rounded = round(float(closest_ce), 4)
 
-        if check_existence and round(float(target), 2) != val_rounded:
+        if check_existence and round(float(target), 4) != val_rounded:
             print(f"Warning: Entropy {target} does not exist, approximating to closest entropy: {val_rounded}")
 
         selected_tasks.append(closest_task)
@@ -121,7 +121,9 @@ def get_tasks_by_entropy(dim: int,
     assert len(selected_tasks) == len(selected_entropies), "Task and entropy count mismatch"
 
     if plot:
+        import matplotlib.pyplot as plt
         from src.analysis.single_run import plot_conditional_entropy
-        plot_conditional_entropy(ces, selected_entropies)
+        fig = plot_conditional_entropy(ces, selected_entropies)
+        plt.close(fig)
 
     return selected_tasks, selected_entropies

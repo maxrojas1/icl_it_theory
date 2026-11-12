@@ -15,6 +15,11 @@ uv sync
 
 You can run commands directly with `uv run python main.py` without activating the virtual environment.
 
+> **Note:** Reproducing paper figures and evaluations using pre-quantized checkpoints works out of the box with the default dependencies. If you wish to compress base models from scratch, install `llmcompressor`:
+> ```bash
+> uv pip install llmcompressor
+> ```
+
 Requirements:
 - Python 3.10 or 3.11
 - NVIDIA GPU with CUDA 12+ (tested on an RTX A6000 48GB and RTX 4500 PRO 32GB)
@@ -85,6 +90,16 @@ Or run with default settings:
 ```bash
 uv run python main.py
 ```
+
+### Model quantization
+
+Evaluations use W8A16 quantized weights. When evaluating a base model (e.g. `Qwen/Qwen2.5-14B`) configured with `quant_bits: 8`, the pipeline compresses and caches the model automatically on first run.
+
+You can also quantize any model in advance using the standalone quantization utility:
+```bash
+uv run python -m src.utils.quantization --model Qwen/Qwen2.5-14B --quant_bits 8
+```
+Quantized checkpoints are stored under `models/<name>-quantized.w8a16` in `compressed-tensors` format and reused for all subsequent evaluations.
 
 ---
 

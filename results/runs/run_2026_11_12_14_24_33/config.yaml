@@ -1,0 +1,50 @@
+max_train: 50
+num_train: 16
+num_val: 64
+num_contexts: 256
+num_entropy_levels: 3
+entropies:
+- 0.2607
+- 0.4769
+- 0.6931
+dim: 1
+seed_train: 43
+seed_val: 44
+seed_entropy: 45
+seed_task: 42
+entropy_num_tasks: 100000
+gpu_ptge: 0.9
+old_geom: false
+quant_bits: null
+plot: both
+models:
+  model_1:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-0.5B-quantized.w8a16
+    params: 0.5B
+    color: '#C7D2FE'
+    run_time: 0:09:34
+  model_3:
+    name: Qwen-2.5
+    id: RedHatAI/Qwen2.5-3B-quantized.w8a16
+    params: 3B
+    color: '#6366F1'
+    run_time: 0:27:34
+run: '2026_11_12_14_24_33'
+run_dir: results/runs/run_2026_11_12_14_24_33
+train_list:
+- 1
+- 2
+- 3
+- 4
+- 5
+- 6
+- 8
+- 10
+- 14
+- 18
+- 23
+- 30
+- 39
+- 50
+run_time: 0:37:10

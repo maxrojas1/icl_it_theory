@@ -56,6 +56,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--xlim", type=float, nargs=2, default=None, help="Set x-axis limits (e.g. --xlim 1 100)")
     parser.add_argument("--ylim", type=float, nargs=2, default=None, help="Set y-axis limits (e.g. --ylim 0.001 1.0)")
     parser.add_argument("--dgp", action="store_true", help="Generate the 1D DGP sigmoid family theoretical figure")
+    parser.add_argument("--quant_bits", type=int, default=None, help="Quantization bits (e.g. 8, 4)")
     parser.add_argument("--plot", type=str, default="both", choices=["asymptotic", "scaling", "both"],
                         help="Which plots to generate: 'asymptotic', 'scaling', or 'both' (default)")
 
@@ -86,6 +87,16 @@ def apply_plot_args(cfg: Any,
         cfg.xlim = list(args.xlim)
     if args.ylim is not None:
         cfg.ylim = list(args.ylim)
+    if getattr(args, "target_entropy", None) is not None:
+        cfg.target_entropy = args.target_entropy
+    if getattr(args, "models", None) is not None and hasattr(cfg, "models"):
+        target_models = {x.lower().rstrip("b") for x in args.models}
+        models_filtered = {
+            k: m for k, m in cfg.models.items()
+            if k in args.models or str(m.get("params", "")).lower().rstrip("b") in target_models
+        }
+        if models_filtered:
+            cfg.models = models_filtered
     return cfg
 
 

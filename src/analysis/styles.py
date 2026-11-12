@@ -40,6 +40,21 @@ def format_param_tick(p: str | float
     return s
 
 
+def format_entropy(val: float | str | int
+) -> str:
+    """
+    Truncates conditional entropy values to two decimal places for visual presentation.
+
+    Args:
+        val: Entropy value as float or string.
+    """
+    s = f"{float(val):.4f}"
+    if "." in s:
+        parts = s.split(".")
+        return f"{parts[0]}.{parts[1][:2]}"
+    return s
+
+
 def get_mapped_axes(figsize: tuple[float, float],
                     num_subplots: int,
                     subplots_to_plot: list[int] | None = None,
@@ -102,8 +117,8 @@ def add_params_colorbar(fig: plt.Figure,
     """
     models_list = [v for _, v in models_dict.items() if isinstance(v, dict)]
     models_sorted = sorted(models_list, key=lambda m: parse_params(m.get('params', '0')))
-    colors = [m['color'] for m in models_sorted]
-    labels = [str(m['params']) for m in models_sorted]
+    colors = [m['color'] for m in models_sorted if 'color' in m]
+    labels = [str(m.get('params', '')) for m in models_sorted if 'color' in m]
 
     cax = fig.add_axes(cax_rect)
     cbar_orientation = "vertical" if orientation == "vertical" else "horizontal"

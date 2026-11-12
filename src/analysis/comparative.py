@@ -7,6 +7,7 @@ import matplotlib.cm as cm
 from .styles import (
     parse_params,
     format_param_tick,
+    format_entropy,
     save_fig,
 )
 from .power_law import (
@@ -46,7 +47,9 @@ def plot_entropy_and_icl_training(cfg_entropy,
 
     models_1 = getattr(cfg_entropy, 'models', {})
     models_2 = getattr(cfg_size, 'models', {})
-    if len(models_1) > 1 and len(models_2) == 1:
+    ent_1 = len(getattr(cfg_entropy, 'entropies', []))
+    ent_2 = len(getattr(cfg_size, 'entropies', []))
+    if (len(models_1) > 1 and len(models_2) == 1) or (ent_1 == 1 and ent_2 > 1):
         cfg_entropy, cfg_size = cfg_size, cfg_entropy
 
     _, train_sizes_ent, entropies_ent, model_cfg_res_ent = preprocessing_entropy_icl_training(cfg_entropy)
@@ -126,13 +129,13 @@ def plot_entropy_and_icl_training(cfg_entropy,
     all_train_sizes = np.concatenate([train_sizes_ent, train_sizes_size])
     for ax in [ax1, ax2]:
         if xlim is not None:
-            ax.set_xlim(float(xlim[0]), float(xlim[1]))
+            ax.set_xlim(max(1e-1, float(xlim[0])), float(xlim[1]))
         else:
             ax.set_xlim(min(all_train_sizes) * 0.85, max(all_train_sizes) * 1.15)
 
     if ylim is not None:
-        ax1.set_ylim(float(ylim[0]), float(ylim[1]))
-        ax2.set_ylim(float(ylim[0]), float(ylim[1]))
+        ax1.set_ylim(max(1e-6, float(ylim[0])), float(ylim[1]))
+        ax2.set_ylim(max(1e-6, float(ylim[0])), float(ylim[1]))
     else:
         y_min = min(ax1.get_ylim()[0], ax2.get_ylim()[0])
         y_max = max(ax1.get_ylim()[1], ax2.get_ylim()[1])
@@ -150,8 +153,12 @@ def plot_entropy_and_icl_training(cfg_entropy,
     cbar_ent = fig.colorbar(sm_ent, cax=cax_ent)
     cbar_ent.ax.yaxis.set_ticks_position('left')
     cbar_ent.ax.yaxis.set_label_position('left')
-    cbar_ent.set_ticks([min_ent, max_ent])
-    cbar_ent.set_ticklabels([f"{min_ent:.2f}", f"{max_ent:.2f}"])
+    if min_ent < max_ent:
+        cbar_ent.set_ticks([min_ent, max_ent])
+        cbar_ent.set_ticklabels([format_entropy(min_ent), format_entropy(max_ent)])
+    else:
+        cbar_ent.set_ticks([min_ent])
+        cbar_ent.set_ticklabels([format_entropy(min_ent)])
     cbar_ent.set_label(r"$H(Y \mid X)$ (nats)", fontsize=label_fs)
     cbar_ent.ax.tick_params(labelsize=cbar_tick_fs)
 
@@ -227,7 +234,9 @@ def plot_and_save_entropy_and_icl_training(cfg_entropy,
 
     models_1 = getattr(cfg_entropy, 'models', {})
     models_2 = getattr(cfg_size, 'models', {})
-    if len(models_1) > 1 and len(models_2) == 1:
+    ent_1 = len(getattr(cfg_entropy, 'entropies', []))
+    ent_2 = len(getattr(cfg_size, 'entropies', []))
+    if (len(models_1) > 1 and len(models_2) == 1) or (ent_1 == 1 and ent_2 > 1):
         cfg_entropy, cfg_size = cfg_size, cfg_entropy
 
     FIG_PATH = Path("results") / "figures"
@@ -254,7 +263,9 @@ def plot_and_save_entropy_and_icl_training(cfg_entropy,
         last_fig = fig
 
         metric_suffix = f"_{metric}" if metric != "risk" else ""
-        filename = f"run_{cfg_entropy.run}__{cfg_size.run}_H_Y_X_{ent_val}_icl_asymptotic{metric_suffix}"
+        clean_run_ent = str(cfg_entropy.run)[4:] if str(cfg_entropy.run).startswith("run_") else str(cfg_entropy.run)
+        clean_run_size = str(cfg_size.run)[4:] if str(cfg_size.run).startswith("run_") else str(cfg_size.run)
+        filename = f"run_{clean_run_ent}__{clean_run_size}_H_Y_X_{ent_val}_icl_asymptotic{metric_suffix}"
         save_fig(fig, FIG_PATH, filename)
         print(f"Saved icl_asymptotic (H={ent_val}):")
         print(f"  {FIG_PATH / filename}")
@@ -280,7 +291,9 @@ def plot_icl_power_law_bound(cfg_entropy,
     """
     models_1 = getattr(cfg_entropy, 'models', {})
     models_2 = getattr(cfg_size, 'models', {})
-    if len(models_1) > 1 and len(models_2) == 1:
+    ent_1 = len(getattr(cfg_entropy, 'entropies', []))
+    ent_2 = len(getattr(cfg_size, 'entropies', []))
+    if (len(models_1) > 1 and len(models_2) == 1) or (ent_1 == 1 and ent_2 > 1):
         cfg_entropy, cfg_size = cfg_size, cfg_entropy
 
     _, train_list_ent, train_cont_ent, entropies_ent, model_cfg_res_ent = preprocessing_entropy_power_law_scaling(cfg_entropy)
@@ -303,7 +316,7 @@ def plot_icl_power_law_bound(cfg_entropy,
     grid_alpha = 0.45
 
     if xlim is not None:
-        min_examples = float(xlim[0])
+        min_examples = max(1e-1, float(xlim[0]))
         max_examples = float(xlim[1])
     else:
         min_examples = 1.0
@@ -332,8 +345,12 @@ def plot_icl_power_law_bound(cfg_entropy,
 
     for w in entropies_ent:
         f_ent = float(w)
-        entropy_config = ent_results[round(f_ent, 2)]
-        color = cmap_ent(norm_ent(max(f_ent, min_ent)))
+        rounded_w = round(f_ent, 4)
+        entropy_config = ent_results.get(rounded_w, ent_results.get(round(f_ent, 2)))
+        if entropy_config is None and ent_results:
+            closest_k = min(ent_results.keys(), key=lambda k: abs(float(k) - f_ent))
+            entropy_config = ent_results[closest_k]
+        color = cmap_ent(norm_ent(max(f_ent, min_ent))) if min_ent < max_ent else cmap_ent(0.5)
 
         risks = np.asarray(entropy_config["risks"])[mask_list_ent]
         y_real = np.asarray(entropy_config["y_real"])[mask_cont_ent]
@@ -406,7 +423,7 @@ def plot_icl_power_law_bound(cfg_entropy,
     ax4.autoscale_view()
     y_min_bot = min(ax3.get_ylim()[0], ax4.get_ylim()[0])
     y_max_bot = max(ax3.get_ylim()[1], ax4.get_ylim()[1])
-    y_min_bot = max(0.0, np.floor(y_min_bot * 10) / 10)
+    y_min_bot = min(minimax_rate, max(0.0, np.floor(y_min_bot * 10) / 10))
     y_max_bot = max(1.15, np.ceil(y_max_bot * 10) / 10 + 0.05)
 
     x_fill = np.logspace(np.log10(min_examples), np.log10(max_examples), 500)
@@ -436,8 +453,12 @@ def plot_icl_power_law_bound(cfg_entropy,
     cbar_ent = fig.colorbar(sm_ent, cax=cax_ent)
     cbar_ent.ax.yaxis.set_ticks_position("left")
     cbar_ent.ax.yaxis.set_label_position("left")
-    cbar_ent.set_ticks([min_ent, max_ent])
-    cbar_ent.set_ticklabels([f"{min_ent:.2f}", f"{max_ent:.2f}"])
+    if min_ent < max_ent:
+        cbar_ent.set_ticks([min_ent, max_ent])
+        cbar_ent.set_ticklabels([format_entropy(min_ent), format_entropy(max_ent)])
+    else:
+        cbar_ent.set_ticks([min_ent])
+        cbar_ent.set_ticklabels([format_entropy(min_ent)])
     cbar_ent.set_label(r"$H(Y \mid X)$ (nats)", fontsize=label_fs)
     cbar_ent.ax.tick_params(labelsize=cbar_tick_fs)
 
@@ -513,7 +534,9 @@ def plot_and_save_icl_power_law_bound(cfg_entropy,
 
     models_1 = getattr(cfg_entropy, 'models', {})
     models_2 = getattr(cfg_size, 'models', {})
-    if len(models_1) > 1 and len(models_2) == 1:
+    ent_1 = len(getattr(cfg_entropy, 'entropies', []))
+    ent_2 = len(getattr(cfg_size, 'entropies', []))
+    if (len(models_1) > 1 and len(models_2) == 1) or (ent_1 == 1 and ent_2 > 1):
         cfg_entropy, cfg_size = cfg_size, cfg_entropy
 
     FIG_PATH = Path("results") / "figures"
@@ -532,7 +555,9 @@ def plot_and_save_icl_power_law_bound(cfg_entropy,
         fig = plot_icl_power_law_bound(cfg_entropy, cfg_size, target_entropy=ent_val, xlim=xlim, ylim=ylim)
         last_fig = fig
 
-        filename = f"run_{cfg_entropy.run}__{cfg_size.run}_H_Y_X_{ent_val}_icl_scaling"
+        clean_run_ent = str(cfg_entropy.run)[4:] if str(cfg_entropy.run).startswith("run_") else str(cfg_entropy.run)
+        clean_run_size = str(cfg_size.run)[4:] if str(cfg_size.run).startswith("run_") else str(cfg_size.run)
+        filename = f"run_{clean_run_ent}__{clean_run_size}_H_Y_X_{ent_val}_icl_scaling"
         save_fig(fig, FIG_PATH, filename)
         print(f"Saved icl_scaling (H={ent_val}):")
         print(f"  {FIG_PATH / filename}")

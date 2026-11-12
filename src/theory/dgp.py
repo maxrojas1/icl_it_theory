@@ -15,7 +15,8 @@ def DGP_1D(x: np.ndarray,
         weight: Slope/weight parameter.
         bias: Intercept/bias parameter.
     """
-    return 1 / (1 + np.exp(-(bias + weight * x)))
+    z = np.clip(-(bias + weight * x), -500.0, 500.0)
+    return 1 / (1 + np.exp(z))
 
 
 def calculate_conditional_entropy(weights: np.ndarray,
@@ -56,7 +57,7 @@ def calculate_conditional_entropy(weights: np.ndarray,
     return np.array(entropies_w), np.array(entropies_b), W_grid, B_grid, H_grid
 
 
-def tensor_to_vec(tensor: Float[torch.Tensor, "1 D"]
+def tensor_to_vec(tensor: Float[torch.Tensor, "D"]
 ) -> str:
     """
     Formats a coordinate vector into a comma-separated string for prompt text.
@@ -64,7 +65,8 @@ def tensor_to_vec(tensor: Float[torch.Tensor, "1 D"]
     Args:
         tensor: 1D point coordinate tensor.
     """
-    vec_list = tensor.tolist()
+    vec_tensor = tensor.squeeze(0) if tensor.ndim > 1 else tensor
+    vec_list = vec_tensor.tolist()
     n_list = len(vec_list)
     vec = ""
     for i in range(n_list):
@@ -163,7 +165,7 @@ def get_text_logistic_regression(W: Float[torch.Tensor, "1 D"],
     text = ""
     for i in range(num_train):
         X_train_point = X_train[i]
-        example_seed = seed_train * 1_000_000 + i
+        example_seed = seed_train + i
         example_prompt, example_label = get_single_point_text(W=W,
                                                               seed=example_seed,
                                                               X_point=X_train_point)
@@ -171,10 +173,12 @@ def get_text_logistic_regression(W: Float[torch.Tensor, "1 D"],
             text += ", "
         text += example_prompt + example_label
 
-    query_seed = seed_val * 10_000 + 9999
     query_prompt, query_label = get_single_point_text(W=W,
-                                                      seed=query_seed,
+                                                      seed=seed_val,
                                                       X_point=X_val_point)
-    text += ", " + query_prompt 
+    if num_train > 0:
+        text += ", " + query_prompt
+    else:
+        text = query_prompt
 
     return text, query_label

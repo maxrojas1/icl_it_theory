@@ -23,6 +23,9 @@ def get_experiment_config(args: argparse.Namespace
         }
         if models_filtered:
             models_cfg.models = models_filtered
+        else:
+            available = [m.get("params") for m in models_cfg.models.values()]
+            raise ValueError(f"No matching models found for --models {args.models}. Available models: {available}")
 
     args_dict = vars(args).copy()
     for k in ["run", "dgp", "xlim", "ylim", "models"]:

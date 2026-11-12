@@ -44,7 +44,7 @@ def get_plots(cfg,
             prefix: Filename prefix describing the plot type.
         """
         for entropy_level, fig in figures_dict.items():
-            val = round(float(entropy_level), 2)
+            val = round(float(entropy_level), 4)
             filename_base = f"run_{clean_run}_{prefix}_H_Y_X_{val}"
             for p in base_paths:
                 subfolder = p / f"H_Y_X_{val}"

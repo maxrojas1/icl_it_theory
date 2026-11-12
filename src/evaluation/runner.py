@@ -13,6 +13,7 @@ from vllm.distributed.parallel_state import destroy_model_parallel
 from src.theory.dgp import (
     get_context,
     get_query,
+    get_single_point_text,
     get_text_logistic_regression,
 )
 from src.theory.entropy import get_tasks_by_entropy
@@ -23,6 +24,7 @@ from src.evaluation.llm import (
 from src.utils.checks import check_text_equal_decoded_tokens
 from src.utils.config import save_config
 from src.utils.logging import log_exp, log_mem
+from src.utils.quantization import get_or_quantize_model
 
 # -------------------------
 # B: batch size
@@ -38,6 +40,7 @@ from src.utils.logging import log_exp, log_mem
 def save_results(cfg,
                  model_cfg,
                  losses_by_entropy,
+                 list_train,
                  start_time: float
 ) -> None:
     """
@@ -47,6 +50,7 @@ def save_results(cfg,
         cfg (DictConfig): OmegaConf configuration object.
         model_cfg (Any): Model configuration object containing name and params.
         losses_by_entropy: Evaluated log loss matrix.
+        list_train: Evaluated training sizes.
         start_time (float): Epoch timestamp when the experiment started.
     """
     start_datetime = datetime.fromtimestamp(start_time)
@@ -61,8 +65,10 @@ def save_results(cfg,
     MODEL_PATH = RUN_PATH / f"{model_cfg.name} ({model_cfg.params})"
     MODEL_PATH.mkdir(parents=True, exist_ok=True)
 
-    df_losses = pd.DataFrame(losses_by_entropy)
+    df_losses = pd.DataFrame(losses_by_entropy, columns=list_train)
     df_losses.to_parquet(MODEL_PATH / "losses.parquet")
+
+    cfg.train_list = [int(x) for x in list_train]
 
     save_config(cfg, RUN_PATH)
     print(f"{model_cfg.name} ({model_cfg.params}) Data and config successfully saved.")
@@ -70,6 +76,8 @@ def save_results(cfg,
 
 def process_one_model(model_cfg,
                       cfg,
+                      requested_tasks: list,
+                      selected_entropies: list,
                       X_train: Float[torch.Tensor, "CO TR D"],
                       X_val: Float[torch.Tensor, "VA D"],
                       start_time: float
@@ -80,6 +88,8 @@ def process_one_model(model_cfg,
     Args:
         model_cfg (Any): Model configuration object containing name, id, and params.
         cfg (DictConfig): OmegaConf configuration object.
+        requested_tasks (list): List of simulated task weight vectors.
+        selected_entropies (list): Corresponding conditional entropy values.
         X_train (Tensor): In-context training examples tensor.
         X_val (Tensor): Validation queries tensor.
         start_time (float): Epoch timestamp when the experiment started (e.g., time.time()).
@@ -91,22 +101,12 @@ def process_one_model(model_cfg,
     
     log_mem("Before loading model")
 
-    llm, tokenizer, sampling_params = load_llm_and_tokenizer(model_cfg.id,
+    quant_bits = getattr(model_cfg, "quant_bits", None) or getattr(cfg, "quant_bits", None)
+    model_id = get_or_quantize_model(model_cfg.id, quant_bits)
+
+    llm, tokenizer, sampling_params = load_llm_and_tokenizer(model_id,
                                                              cfg.gpu_ptge)
     log_mem("After loading model")
-
-    target_entropies = getattr(cfg, 'entropies', None)
-    num_entropy_levels = getattr(cfg, 'num_entropy_levels', None)
-
-    requested_tasks, selected_entropies = get_tasks_by_entropy(
-        dim=cfg.dim,
-        seed_entropy=cfg.seed_entropy,
-        entropies=target_entropies,
-        num_entropy_levels=num_entropy_levels if num_entropy_levels is not None else 10,
-        num_task=getattr(cfg, 'entropy_num_tasks', 100_000),
-        plot=True
-    )
-    cfg.entropies = selected_entropies
 
     list_tasks = range(len(requested_tasks))
     if getattr(cfg, "old_geom", False):
@@ -122,6 +122,10 @@ def process_one_model(model_cfg,
     first_context_done = False
     context_start_time = None
 
+    seed_task = getattr(cfg, "seed_task", 42)
+    seed_train = getattr(cfg, "seed_train", 43)
+    seed_val = getattr(cfg, "seed_val", 44)
+
     for w in tqdm(list_tasks, desc="   Entropies", leave=False):
 
         W = requested_tasks[w] # (D, 1)
@@ -133,30 +137,47 @@ def process_one_model(model_cfg,
 
             X_train_context = X_train[c, :, :] # (TR, D)
 
+            # Pre-generate demonstration prompt and label pairs for this context
+            context_seed_base = int(seed_train * 10_000_000 + (seed_task + w) * 100_000 + c * 1_000)
+            demo_items = []
+            for i in range(cfg.max_train):
+                X_train_point = X_train_context[i] # (D,)
+                p_prompt, p_label = get_single_point_text(W=W,
+                                                          seed=context_seed_base + i,
+                                                          X_point=X_train_point)
+                demo_items.append(p_prompt + p_label)
+
+            # Pre-generate validation queries and labels for this context
+            val_prompts = []
+            val_labels = []
+            val_label_ids = []
+            for v in list_val:
+                X_val_point = X_val[v] # (D,)
+                query_seed = int(seed_val * 10_000_000 + (seed_task + w) * 100_000 + c * 1_000 + v)
+                q_prompt, q_label = get_single_point_text(W=W,
+                                                          seed=query_seed,
+                                                          X_point=X_val_point)
+                val_prompts.append(q_prompt)
+                val_labels.append(q_label)
+                label_id = tokenizer.encode(q_label, add_special_tokens=False)[-1]
+                val_label_ids.append(label_id)
+
             for (t_i, t) in enumerate(tqdm(list_train, desc="   Training Sizes", leave=False)):
 
-                X_train_points = X_train_context[:t, :] # (t, D)
+                demo_prefix = ", ".join(demo_items[:t])
+                if demo_prefix:
+                    demo_prefix += ", "
 
                 tokenized_dataset = []
-                label_ids = []
 
                 for v in list_val:
-
-                    X_val_point = X_val[v] # (1, D)
-
-                    text, label = get_text_logistic_regression(W,
-                                                            X_train_points,
-                                                            X_val_point,
-                                                            cfg.seed_val * c * t * v,
-                                                            cfg.seed_train)
-
+                    text = demo_prefix + val_prompts[v]
                     token_ids = tokenizer.encode(text, add_special_tokens=True)
-                    label_id = tokenizer.encode(label, add_special_tokens=False)[-1]
 
-                    check_text_equal_decoded_tokens(text, tokenizer.decode(token_ids, skip_special_tokens=True))
-                    
+                    if not first_context_done and t_i == 0 and v == 0:
+                        check_text_equal_decoded_tokens(text, tokenizer.decode(token_ids, skip_special_tokens=True))
+
                     tokenized_dataset.append(token_ids)
-                    label_ids.append(label_id)
 
                 formatted_prompts = [{"prompt_token_ids": token_ids} for token_ids in tokenized_dataset]
                 request_output = llm.generate(formatted_prompts,
@@ -164,9 +185,9 @@ def process_one_model(model_cfg,
                                             use_tqdm=False)
 
                 batch_loss = get_batch_next_token_log_loss(request_output,
-                                                           label_ids)
+                                                           val_label_ids)
 
-                losses_by_context_and_size[c,t_i] = batch_loss
+                losses_by_context_and_size[c, t_i] = batch_loss
 
             if not first_context_done:
                 first_context_done = True
@@ -212,6 +233,7 @@ def process_one_model(model_cfg,
     save_results(cfg,
                  model_cfg,
                  losses_by_entropy,
+                 list_train,
                  start_time)
 
     return losses_by_entropy
@@ -253,6 +275,19 @@ def run_icl_training(cfg
                       cfg.seed_val,
                       cfg.num_val).cpu() # (VA, D)
 
+    target_entropies = getattr(cfg, 'entropies', None)
+    num_entropy_levels = getattr(cfg, 'num_entropy_levels', None)
+
+    requested_tasks, selected_entropies = get_tasks_by_entropy(
+        dim=cfg.dim,
+        seed_entropy=cfg.seed_entropy,
+        entropies=target_entropies,
+        num_entropy_levels=num_entropy_levels if num_entropy_levels is not None else 10,
+        num_task=getattr(cfg, 'entropy_num_tasks', 100_000),
+        plot=False
+    )
+    cfg.entropies = selected_entropies
+
     for _, (_, model_cfg) in enumerate(cfg.models.items()):
         
         print(f"\n{model_cfg.name} ({model_cfg.params}):")
@@ -267,6 +302,8 @@ def run_icl_training(cfg
         try:
             process_one_model(model_cfg,
                               cfg,
+                              requested_tasks,
+                              selected_entropies,
                               X_train,
                               X_val,
                               start_time)

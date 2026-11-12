@@ -5,6 +5,7 @@ import pandas as pd
 from scipy.optimize import curve_fit
 
 from src.theory.entropy import get_all_simulated_tasks_and_ces, get_tasks_by_entropy
+from src.analysis.styles import format_entropy
 
 def load_fitted_weights(run_path: Path | str
 ) -> dict:
@@ -101,7 +102,9 @@ def get_base_preprocessing(cfg,
         clean_run = str(cfg.run)[4:] if str(cfg.run).startswith("run_") else str(cfg.run)
         RUN_PATH = Path("results") / "runs" / f"run_{clean_run}"
 
-    if getattr(cfg, "old_geom", False):
+    if hasattr(cfg, "train_list") and cfg.train_list is not None:
+        train_list = np.array(cfg.train_list, dtype=int)
+    elif getattr(cfg, "old_geom", False):
         train_list = np.unique(np.geomspace(1, cfg.max_train, num=cfg.num_train, dtype=int))
     else:
         train_list = np.unique(np.round(np.geomspace(1, cfg.max_train, num=cfg.num_train)).astype(int))
@@ -164,10 +167,10 @@ def preprocessing_icl_training(cfg
 
     entropy_config_and_results = {}
     for w_i, w in enumerate(entropies):
-        rounded_w = round(float(w), 2)
+        rounded_w = round(float(w), 4)
 
-        risk_title_str = fr"In-Context Learning Regret for $H(Y \mid X) = {float(w):.2f}$"
-        loss_title_str = fr"In-Context Learning Loss for $H(Y \mid X) = {float(w):.2f}$"
+        risk_title_str = fr"In-Context Learning Regret for $H(Y \mid X) = {format_entropy(w)}$"
+        loss_title_str = fr"In-Context Learning Loss for $H(Y \mid X) = {format_entropy(w)}$"
 
         model_config_and_results = {
             "risk_title": risk_title_str,
@@ -257,7 +260,7 @@ def preprocessing_entropy_power_law_scaling(cfg
 
         entropy_config_and_results = {}
         for w_i, w in enumerate(entropies):
-            rounded_w = round(float(w), 2)
+            rounded_w = round(float(w), 4)
             risks = model_risks[w_i]
 
             cache_key = f"power_law_{model_cfg.id}_{rounded_w}"
@@ -266,7 +269,7 @@ def preprocessing_entropy_power_law_scaling(cfg
                 A, alpha, c = wf["A"], wf["alpha"], wf["c"]
             else:
                 (A, alpha, c), _ = curve_fit(
-                    power_law_fit_func, train_list, np.log10(risks),    
+                    power_law_fit_func, train_list, np.log10(np.clip(risks, 1e-10, None)),    
                     p0=[1.0, 0.5, 0.01], bounds=([1e-7, 0.01, 1e-7], [10.0, 5.0, 1.0]) 
                 )
                 cached_weights[cache_key] = {"A": float(A), "alpha": float(alpha), "c": float(c)}
@@ -338,9 +341,9 @@ def preprocessing_power_law_scaling(cfg
 
     entropy_config_and_results = {}
     for w_i, w in enumerate(entropies):
-        rounded_w = round(float(w), 2)
+        rounded_w = round(float(w), 4)
 
-        title_str = fr"ICL Scaling Law for $H(Y \mid X) = {float(w):.2f}$"
+        title_str = fr"ICL Scaling Law for $H(Y \mid X) = {format_entropy(w)}$"
 
         model_config_and_results = {
             "title": title_str
@@ -357,7 +360,7 @@ def preprocessing_power_law_scaling(cfg
                 A, alpha, c = wf["A"], wf["alpha"], wf["c"]
             else:
                 (A, alpha, c), _ = curve_fit(
-                    power_law_fit_func, train_list, np.log10(risks),    
+                    power_law_fit_func, train_list, np.log10(np.clip(risks, 1e-10, None)),    
                     p0=[1.0, 0.5, 0.01], bounds=([1e-7, 0.01, 1e-7], [10.0, 5.0, 1.0]) 
                 )
                 cached_weights[cache_key] = {"A": float(A), "alpha": float(alpha), "c": float(c)}
