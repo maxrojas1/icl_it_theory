@@ -80,8 +80,8 @@ uv run python main.py --models 7B --max_train 300 --num_train 64 --num_contexts 
 # run_2026_09_23_20_07_26: Model scaling at H=0.6931
 uv run python main.py --max_train 300 --num_train 64 --num_contexts 256 --num_val 64 --entropies 0.6931
 
-# run_2026_07_23_17_24_35: 7B model entropy scaling for bound analysis
-uv run python main.py --models 7B --max_train 1000 --num_train 500 --num_contexts 100 --num_val 100 --entropies 0.3600 0.4000 0.4400 0.4700 0.5100 0.5500 0.5800 0.6200 0.6600 0.6931
+# 7B model entropy scaling for bound analysis (10 levels across H=0.26 to H=0.69)
+uv run python main.py --models 7B --max_train 1000 --num_train 500 --num_contexts 100 --num_val 100 --num_entropy_levels 10
 
 # run_2026_06_20_00_31_10: Model scaling at H=0.6931 for bound analysis
 uv run python main.py --max_train 1000 --num_train 500 --num_contexts 100 --num_val 100 --entropies 0.6931
