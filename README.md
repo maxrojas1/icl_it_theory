@@ -40,10 +40,10 @@ uv run python main.py --dgp
 
 ```bash
 # Basic asymptotic analysis
-uv run python main.py --run 2026_09_23_20_10_18 2026_09_23_20_07_26 --plot asymptotic --target_entropy 0.26
+uv run python main.py --run 2026_09_23_20_10_18 2026_09_23_20_07_26 --plot asymptotic --target_entropy 0.2607
 
 # ICL scaling analysis
-uv run python main.py --run 2026_07_23_17_24_35 2026_06_20_00_31_10 --xlim 1 100 --plot scaling --target_entropy 0.69
+uv run python main.py --run 2026_07_23_17_24_35 2026_06_20_00_31_10 --xlim 1 100 --plot scaling --target_entropy 0.6931
 ```
 
 ### Individual plots
@@ -63,16 +63,11 @@ Plots are saved as PDFs under `results/figures/run_<timestamp>/` for single-run 
 
 ### Automated execution queue
 
-To run the complete pipeline end-to-end (14B model quantization, DGP figure generation, the four paper evaluation runs, and all comparative plots):
+To run the complete pipeline end-to-end (14B model quantization, DGP figure generation, and all four paper evaluation runs):
 
 ```bash
 ./run_experiments.sh
 ```
-
-Optional flags:
-- `--dry-run`: View all queued commands without executing.
-- `--quant-only`: Only quantize the 14B model to W8A16 and exit.
-- `--skip-quant`: Skip 14B quantization check and proceed directly to evaluations.
 
 ### Re-running individual paper experiments
 
@@ -82,14 +77,14 @@ Here are the exact commands to reproduce the evaluations for each paper run from
 # run_2026_09_23_20_10_18: 7B model entropy scaling
 uv run python main.py --models 7B --max_train 300 --num_train 64 --num_contexts 256 --num_val 64 --num_entropy_levels 10
 
-# run_2026_09_23_20_07_26: Model scaling at H=0.69
-uv run python main.py --max_train 300 --num_train 64 --num_contexts 256 --num_val 64 --entropies 0.69
+# run_2026_09_23_20_07_26: Model scaling at H=0.6931
+uv run python main.py --max_train 300 --num_train 64 --num_contexts 256 --num_val 64 --entropies 0.6931
 
 # run_2026_07_23_17_24_35: 7B model entropy scaling for bound analysis
-uv run python main.py --models 7B --max_train 1000 --num_train 500 --num_contexts 100 --num_val 100 --old_geom --entropies 0.36 0.4 0.44 0.47 0.51 0.55 0.58 0.62 0.66 0.69
+uv run python main.py --models 7B --max_train 1000 --num_train 500 --num_contexts 100 --num_val 100 --entropies 0.3600 0.4000 0.4400 0.4700 0.5100 0.5500 0.5800 0.6200 0.6600 0.6931
 
-# run_2026_06_20_00_31_10: Model scaling at H=0.69 for bound analysis
-uv run python main.py --max_train 1000 --num_train 500 --num_contexts 100 --num_val 100 --old_geom --entropies 0.69
+# run_2026_06_20_00_31_10: Model scaling at H=0.6931 for bound analysis
+uv run python main.py --max_train 1000 --num_train 500 --num_contexts 100 --num_val 100 --entropies 0.6931
 ```
 
 ### Custom runs
